@@ -1,3 +1,5 @@
+from math import log
+
 """
 Initial adapted from code found here under MIT License
 
@@ -7,6 +9,7 @@ https://github.com/laurentluce/python-algorithms
 class Node:
     def __init__(self, url):
         self.url = url
+        self.parsed = False
         self.links = []
 
     def add_link(self, node):
@@ -14,6 +17,12 @@ class Node:
 
     def get_links(self):
         return self.links
+
+    def set_parsed(self):
+        self.parsed = True
+
+    def get_parsed(self):
+        return self.parsed
 
     def __gt__(self, node):
         return self.url > node.url
@@ -58,24 +67,43 @@ class BT:
             else:
                 self.right.insert(data)
 
+    def find_parsed(self, depth=0):
+        if not self.data.get_parsed():
+            return self.data
+        else:
+            if not self.left is None:
+                if self.left.find_parsed(depth) is None:
+                    if not self.right is None:
+                        return self.right.find_parsed(depth)
+                    else:
+                        return None
+                else: 
+                    return self.left.find_parsed(depth)
+            elif not self.right is None:
+                return self.right.find_parsed(depth)
+            else:
+                return None
+
+
+
     def lookup(self, url, parent=None):
         """
         Lookup node containing data
 
-        @param data node data object to look up
+        @param url node data object to look up
         @param parent node's parent
         @returns node and node's parent if found or None, None
         """
-        if data < self.data:
+        if url < self.data:
             if self.left is None:
                 return None, None
-            return self.left.lookup(data, self)
-        elif data > self.data:
+            return self.left.lookup(url, self)
+        elif url > self.data:
             if self.right is None:
                 return None, None
-            return self.right.lookup(data, self)
+            return self.right.lookup(url, self)
         else:
-            return self, parent
+            return url.url
 
     def delete(self, data):
         """
@@ -187,3 +215,18 @@ class BT:
         if self.right:
             cnt += 1
         return cnt
+
+    def node_count(self, cnt):
+        cnt = 1
+        if self.left:
+            cnt += self.left.node_count(cnt)
+        if self.right:
+            cnt += self.right.node_count(cnt)
+        return cnt
+
+
+    def height(self, high):
+        children = self.node_count(0)
+        #print children
+        h = log(children,2)
+        return h
