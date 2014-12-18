@@ -4,14 +4,12 @@ from binary_tree import Node, BT
 from bs4 import BeautifulSoup
 
 
-test = None
+nodes = {}
 
-def parse(node, nodes):
-	print node.url
+def parse(node, depth):
+	print node.url + " " + str(depth)
 	node.parsed = True
-	nodedist = node.distance + 1
-	if nodedist > 14:
-		return
+	nodedist = depth + 1
 	page = urllib2.urlopen("http://en.wikipedia.org"+node.url).read()
 	soup = BeautifulSoup(page)
 	links = soup.find_all('a')
@@ -86,17 +84,22 @@ def parse(node, nodes):
 				continue
 			href = str(link.get('href')).rstrip().lstrip()
 			if not href in nodes:
-				lnode = Node(href,nodedist)
+				lnode = Node(href,nodedist,node)
+				nodes[href]=(lnode,nodedist)
 				node.add_link(lnode)
 			else:
 				node.add_link(nodes[href])
 			#f.write(str(link.get('href'))+ "\n")
 			#count = count + 1
 	#f.close()
-	links = node.get_links()
-	for link in links:
-		if not link.get_parsed():
-			parse(link, nodes)
+
+def nextNode(depth):
+	for node in nodes:
+		if nodes[node][1] == depth:
+			if not nodes[node][0].get_parsed():
+				return nodes[node][0]
+	return None
+
 
 # def findNext(node):
 # 	return node.find_parsed()
@@ -120,16 +123,27 @@ def parse(node, nodes):
 war = urllib2.urlopen("http://en.wikipedia.org/wiki/Wars_of_the_Roses").read()
 evaluate = ["Mascarpone","Wars_of_the_Roses"]
 N1 = Node("/wiki/Mascarpone",0)
-N2 = Node("/wiki/Wars_of_the_Roses",0)
+#N2 = Node("/wiki/Wars_of_the_Roses",0)
 
 
-nodes = {}
-nodes["/wiki/Mascarpone"] = N1
-nodes["/wiki/Wars_of_the_Roses"] = N2
+depth = 0
+
+nodes["/wiki/Mascarpone"] = (N1,0)
+##nodes["/wiki/Wars_of_the_Roses"] = N2
 
 
-parse(N1,nodes)
-parse(N2,nodes)
+while depth < 14:
+	next = nextNode(depth)
+	if nextNode(depth) is None:
+		depth += 1
+	else:
+		if "/wiki/Wars_of_the_Roses" in next.url:
+			print "Done " + str(depth)
+			quit()
+		parse(next, depth)
+
+#parse(N1,nodes)
+#parse(N2,nodes)
 
 
 #root.print_tree()
