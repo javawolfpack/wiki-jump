@@ -4,12 +4,21 @@ from binary_tree import Node, BT
 from bs4 import BeautifulSoup
 
 
-def parse(node):
+test = None
+
+def parse(node, nodes):
+	print node.url
+	node.parsed = True
+	nodedist = node.distance + 1
+	if nodedist > 14:
+		return
 	page = urllib2.urlopen("http://en.wikipedia.org"+node.url).read()
 	soup = BeautifulSoup(page)
 	links = soup.find_all('a')
+	
 	#f = open('links.txt', 'w')
 	#count = 0
+
 	for link in links:
 		if "/wiki/" in str(link):
 			## Ignore contact us page link on Wikipedia
@@ -75,26 +84,33 @@ def parse(node):
 			## Ignore wikiversity links
 			if "wikiversity.org" in str(link):
 				continue
-			lnode = Node(str(link.get('href')))
-			node.add_link(lnode)
+			href = str(link.get('href')).rstrip().lstrip()
+			if not href in nodes:
+				lnode = Node(href,nodedist)
+				node.add_link(lnode)
+			else:
+				node.add_link(nodes[href])
 			#f.write(str(link.get('href'))+ "\n")
 			#count = count + 1
 	#f.close()
-	return node.get_links()
+	links = node.get_links()
+	for link in links:
+		if not link.get_parsed():
+			parse(link, nodes)
 
-def findNext(node):
-	return node.find_parsed()
+# def findNext(node):
+# 	return node.find_parsed()
 
-def findLinks(root):
-	node = findNext(root)
-	while not node is None:
-		links = parse(node)
-		if not root.height(2) > 25:
-			for link in links:
-				root.insert(link)
-		#root.print_tree()
-		node.set_parsed()
-		node = findNext(root)
+# def findLinks(root):
+# 	node = findNext(root)
+# 	while not node is None:
+# 		links = parse(node)
+# 		if not root.height(2) > 25:
+# 			for link in links:
+# 				root.insert(link)
+# 		#root.print_tree()
+# 		node.set_parsed()
+# 		node = findNext(root)
 		#print node
 
 		#quit()
@@ -103,9 +119,20 @@ def findLinks(root):
 
 war = urllib2.urlopen("http://en.wikipedia.org/wiki/Wars_of_the_Roses").read()
 evaluate = ["Mascarpone","Wars_of_the_Roses"]
-root = BT(Node("/wiki/Mascarpone"))
-root.insert(Node("/wiki/Wars_of_the_Roses"))
+N1 = Node("/wiki/Mascarpone",0)
+N2 = Node("/wiki/Wars_of_the_Roses",0)
+
+
+nodes = {}
+nodes["/wiki/Mascarpone"] = N1
+nodes["/wiki/Wars_of_the_Roses"] = N2
+
+
+parse(N1,nodes)
+parse(N2,nodes)
+
 
 #root.print_tree()
-findLinks(root)
+#findLinks(root)
 #print test
+

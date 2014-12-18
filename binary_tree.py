@@ -7,8 +7,9 @@ https://github.com/laurentluce/python-algorithms
 """
 
 class Node:
-    def __init__(self, url):
+    def __init__(self, url, distance):
         self.url = url
+        self.distance = distance
         self.parsed = False
         self.links = []
 
