@@ -1,22 +1,51 @@
 import urllib2
 from binary_tree import Node, BT
+import signal, sys
 
 from bs4 import BeautifulSoup
+from time import sleep
 
+import Queue
+import time
+import thread
+import threading
 
+q = Queue.Queue()
+
+lock = threading.Lock()
+
+maxnode = 0 
 nodes = {}
+exitapp = False
 
-def parse(node, depth):
-	print node.url + " " + str(depth)
+THREADS = []
+
+def handler(signal, frame):
+    global THREADS
+    global exitapp
+    print "Ctrl-C.... Exiting"
+    exitapp = True
+    sys.exit(0)
+
+def parse(node):
+	global q
+	global nodes
+	global maxnode
+	global exitapp
 	node.parsed = True
-	nodedist = depth + 1
+	nodedist = node.distance + 1
+	if "/wiki/Vaginal_lubrication" == node.url:
+ 		print "Done " + str(nodedist)
+ 		exitapp = True
+ 		quit()
+	print node.url + " " + str(nodedist)
 	page = urllib2.urlopen("http://en.wikipedia.org"+node.url).read()
 	soup = BeautifulSoup(page)
 	links = soup.find_all('a')
 	
 	#f = open('links.txt', 'w')
 	#count = 0
-
+	n = []
 	for link in links:
 		if "/wiki/" in str(link):
 			## Ignore contact us page link on Wikipedia
@@ -82,23 +111,53 @@ def parse(node, depth):
 			## Ignore wikiversity links
 			if "wikiversity.org" in str(link):
 				continue
-			href = str(link.get('href')).rstrip().lstrip()
+			## Ignore wikibooks links
+			if "wikibooks.org" in str(link):
+				continue
+			if "kpi.ac.th" in str(link):
+				continue
+			try:
+				href = str(link.get('href')).rstrip().lstrip()
+			except:
+				print link.get('href') 
 			if not href in nodes:
 				lnode = Node(href,nodedist,node)
-				nodes[href]=(lnode,nodedist)
+				nodes[href]=lnode
+				#nodes[href]
+				n = n + [lnode]
 				node.add_link(lnode)
 			else:
 				node.add_link(nodes[href])
 			#f.write(str(link.get('href'))+ "\n")
 			#count = count + 1
+	lock.acquire() # will block if lock is already held
+	maxnode = nodedist
+	for no in n:
+		q.put(no)
+	lock.release()
 	#f.close()
 
-def nextNode(depth):
-	for node in nodes:
-		if nodes[node][1] == depth:
-			if not nodes[node][0].get_parsed():
-				return nodes[node][0]
-	return None
+
+def parsethread():
+	global q
+	global maxnode
+	global exitapp
+	while maxnode < 10 and not exitapp:
+		lock.acquire()
+		while q.empty():
+			lock.release()
+			sleep(0.005)
+			lock.acquire() # will block if lock is already held
+		node = q.get()
+		lock.release()
+		parse(node)
+
+# def nextNode(depth):
+# 	for node in nodes:
+# 		if nodes[node].distance == depth:
+# 			if not nodes[node][0].get_parsed():
+# 				return nodes[node][0]
+# 	return None
 
 
 # def findNext(node):
@@ -118,29 +177,50 @@ def nextNode(depth):
 
 		#quit()
 
+numThreads = 5
 
-
-war = urllib2.urlopen("http://en.wikipedia.org/wiki/Wars_of_the_Roses").read()
-evaluate = ["Mascarpone","Wars_of_the_Roses"]
+#war = urllib2.urlopen("http://en.wikipedia.org/wiki/Wars_of_the_Roses").read()
+#evaluate = ["Mascarpone","Wars_of_the_Roses"]
 N1 = Node("/wiki/Mascarpone",0)
+q.put(N1)
+nodes["/wiki/Mascarpone"] = N1
 #N2 = Node("/wiki/Wars_of_the_Roses",0)
 
 
-depth = 0
 
-nodes["/wiki/Mascarpone"] = (N1,0)
+
+# depth = 0
+
+def main():
+	global THREADS
+	try:
+		for i in range(numThreads):
+			thread = threading.Thread(target=parsethread)
+			THREADS.append(thread)
+			thread.start()
+	except:
+		print "Error: unable to start thread"
+
+	for t in THREADS:
+	 	t.join()
+
+
+signal.signal(signal.SIGINT, handler)
+main()
+
 ##nodes["/wiki/Wars_of_the_Roses"] = N2
 
 
-while depth < 14:
-	next = nextNode(depth)
-	if nextNode(depth) is None:
-		depth += 1
-	else:
-		if "/wiki/Wars_of_the_Roses" in next.url:
-			print "Done " + str(depth)
-			quit()
-		parse(next, depth)
+# while depth < 14:
+# 	next = nextNode(depth)
+# 	if nextNode(depth) is None:
+# 		depth += 1
+# 		print depth
+# 	else:
+# 		if "/wiki/Wars_of_the_Roses" in next.url:
+# 			print "Done " + str(depth)
+# 			quit()
+# 		q.put((next, depth))
 
 #parse(N1,nodes)
 #parse(N2,nodes)
